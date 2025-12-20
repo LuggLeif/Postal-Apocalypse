@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 
@@ -10,6 +11,12 @@ public class DeliveryInteractor : MonoBehaviour
 
     [Header("Timing")]
     [SerializeField] private float secondsPerPackage = 2f;
+
+    /// <summary>
+    /// Fired when a delivery streak ends. Value is the streak length (packages delivered consecutively).
+    /// Only fired for streak >= 2 (so the message system can do your di/tri/etc).
+    /// </summary>
+    public event Action<int> OnDeliveryStreakEnded;
 
     private DeliveryZone _currentZone;
     private Coroutine _deliverRoutine;
@@ -31,8 +38,9 @@ public class DeliveryInteractor : MonoBehaviour
     {
         if (zone == null) return;
 
-        // Switching zones counts as interruption.
-        if (_currentZone != zone) _streakCount = 0;
+        // Switching zones = interruption. End streak (if any).
+        if (_currentZone != null && _currentZone != zone)
+            EndStreakIfAny();
 
         _currentZone = zone;
 
@@ -45,7 +53,8 @@ public class DeliveryInteractor : MonoBehaviour
     private void ExitZone()
     {
         _currentZone = null;
-        _streakCount = 0;
+
+        EndStreakIfAny();
 
         if (_deliverRoutine != null)
         {
@@ -68,7 +77,7 @@ public class DeliveryInteractor : MonoBehaviour
         while (_currentZone == zone)
         {
             int have = inventory.GetCount(id);
-            if (have <= 0) break;
+            if (have <= 0) break; // no more packages => streak ends naturally
 
             float t = 0f;
             while (t < secondsPerPackage)
@@ -79,7 +88,6 @@ public class DeliveryInteractor : MonoBehaviour
                 yield return null;
             }
 
-            // Deliver one package
             if (_currentZone != zone) yield break;
 
             bool removed = inventory.RemoveOne(id);
@@ -92,10 +100,22 @@ public class DeliveryInteractor : MonoBehaviour
             if (deliveryUI != null) deliveryUI.SetProgress01(0f);
         }
 
-        // Session ended (no packages or left zone)
+        // If we get here, delivery stopped because packages ran out OR zone changed later.
+        // If still in the same zone, we ended due to running out.
+        if (_currentZone == zone)
+        {
+            EndStreakIfAny();
+            if (deliveryUI != null) deliveryUI.Hide();
+            _deliverRoutine = null;
+        }
+    }
+
+    private void EndStreakIfAny()
+    {
+        if (_streakCount >= 2)
+            OnDeliveryStreakEnded?.Invoke(_streakCount);
+
         _streakCount = 0;
-        if (deliveryUI != null) deliveryUI.Hide();
-        _deliverRoutine = null;
     }
 
     // Example requested: 10, 12, 15, 19... (adds +2, +3, +4...)

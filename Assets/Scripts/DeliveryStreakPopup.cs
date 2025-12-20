@@ -1,19 +1,21 @@
 using TMPro;
 using UnityEngine;
 
-public class XPGainPopup : MonoBehaviour
+public class DeliveryStreakPopup : MonoBehaviour
 {
     [SerializeField] private TMP_Text label;
     [SerializeField] private CanvasGroup canvasGroup;
 
+    [Header("Timing")]
+    [SerializeField] private float lifetime = 1.25f;
+
     [Header("Motion")]
-    [SerializeField] private float lifetime = 1.0f;
-    [SerializeField] private float floatUpPixels = 60f;
+    [SerializeField] private float floatUpPixels = 80f;
 
     [Header("Punch")]
-    [SerializeField] private float startScale = 0.85f;
-    [SerializeField] private float punchScale = 1.15f;
-    [SerializeField] private float punchTime = 0.12f;
+    [SerializeField] private float startScale = 0.7f;
+    [SerializeField] private float peakScale = 1.25f;
+    [SerializeField] private float punchTime = 0.14f;
 
     private RectTransform _rt;
     private Vector2 _startPos;
@@ -25,9 +27,9 @@ public class XPGainPopup : MonoBehaviour
         if (canvasGroup == null) canvasGroup = GetComponent<CanvasGroup>();
     }
 
-    public void Play(int xpAmount)
+    public void Play(string message)
     {
-        if (label) label.text = $"+{xpAmount} XP";
+        if (label) label.text = message;
 
         _startPos = _rt.anchoredPosition;
         _rt.localScale = Vector3.one * startScale;
@@ -49,21 +51,21 @@ public class XPGainPopup : MonoBehaviour
             // Float up
             _rt.anchoredPosition = _startPos + Vector2.up * (floatUpPixels * EaseOutCubic(n));
 
-            // Scale punch then settle
+            // Punch scale
             float s;
             if (t < punchTime)
             {
                 float pn = t / punchTime;
-                s = Mathf.Lerp(startScale, punchScale, EaseOutBack(pn));
+                s = Mathf.Lerp(startScale, peakScale, EaseOutBack(pn));
             }
             else
             {
                 float sn = Mathf.InverseLerp(punchTime, lifetime, t);
-                s = Mathf.Lerp(punchScale, 1f, EaseOutCubic(sn));
+                s = Mathf.Lerp(peakScale, 1f, EaseOutCubic(sn));
             }
             _rt.localScale = Vector3.one * s;
 
-            // Fade near the end
+            // Fade near end
             float fadeStart = 0.55f;
             if (canvasGroup)
             {

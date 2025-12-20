@@ -4,6 +4,10 @@ using UnityEngine;
 public class PlayerExperience : MonoBehaviour
 {
     public event Action OnChanged;
+
+    /// <summary>
+    /// Fired whenever XP is added (amount added).
+    /// </summary>
     public event Action<int> OnXpGained;
 
     [SerializeField] private int level = 1;
@@ -34,5 +38,9 @@ public class PlayerExperience : MonoBehaviour
 
     public float GetNormalized() => xpToNext <= 0 ? 0f : (float)currentXp / xpToNext;
 
-    private int ComputeXpToNext(int lvl) => 100 + (lvl - 1) * 25;
+    private int ComputeXpToNext(int lvl)
+    {
+        // Simple curve; tweak as desired.
+        return 100 + (lvl - 1) * 25;
+    }
 }

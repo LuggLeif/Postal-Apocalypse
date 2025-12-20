@@ -6,8 +6,8 @@ public class XPGainPopupSpawner : MonoBehaviour
 
     [Header("UI")]
     [SerializeField] private XPGainPopup popupPrefab;
-    [SerializeField] private RectTransform parent;      // usually a UI panel under your Canvas
-    [SerializeField] private RectTransform spawnAnchor; // e.g. near the XP bar
+    [SerializeField] private RectTransform parent;      // e.g. HUD/Popups
+    [SerializeField] private RectTransform spawnAnchor; // e.g. near XP bar
 
     [Header("Scatter")]
     [SerializeField] private Vector2 randomOffset = new Vector2(40f, 10f);
