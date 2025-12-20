@@ -28,10 +28,30 @@ public class ThirdPersonController : MonoBehaviour
     [SerializeField] private string movingParam = "IsMoving";
     [SerializeField] private bool setMovingBool = true;
 
+    [Header("Turn-in-place Animation")]
+    [Tooltip("Degrees/second where we START blending from idle -> walk while turning in place.")]
+    [SerializeField] private float turnStartDegPerSec = 60f;
+
+    [Tooltip("Degrees/second where we are FULLY at turnAnimSpeed.")]
+    [SerializeField] private float turnFullDegPerSec = 180f;
+
+    [Tooltip("Extra normalized speed to feed animator while turning in place (should land in your walk range).")]
+    [SerializeField, Range(0f, 1f)] private float turnAnimSpeed = 0.35f;
+
+    [Tooltip("Only apply turn-walk if current movement speed is below this.")]
+    [SerializeField, Range(0f, 1f)] private float idleSpeedThreshold01 = 0.05f;
+
+    [Tooltip("Smoothing time (seconds) for animator Speed parameter.")]
+    [SerializeField] private float speedDampTime = 0.1f;
+
     private CharacterController controller;
     private float turnSmoothVelocity;
     private float verticalVelocity;
     private float currentSpeed;
+
+    // Turning detection
+    private float _lastYaw;
+    private float _turnDegPerSec;
 
     private void Awake()
     {
@@ -42,6 +62,8 @@ public class ThirdPersonController : MonoBehaviour
 
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
+
+        _lastYaw = transform.eulerAngles.y;
     }
 
     private void OnEnable()
@@ -58,6 +80,8 @@ public class ThirdPersonController : MonoBehaviour
 
     private void Update()
     {
+        UpdateTurnRate(); // <- computes _turnDegPerSec each frame
+
         if (cameraTransform == null)
         {
             ApplyGravity();
@@ -68,6 +92,15 @@ public class ThirdPersonController : MonoBehaviour
         HandleMovementCameraRelative();
         ApplyGravity();
         UpdateAnimator();
+    }
+
+    private void UpdateTurnRate()
+    {
+        float yaw = transform.eulerAngles.y;
+        float yawDelta = Mathf.DeltaAngle(_lastYaw, yaw);
+        _lastYaw = yaw;
+
+        _turnDegPerSec = Mathf.Abs(yawDelta) / Mathf.Max(Time.deltaTime, 0.0001f);
     }
 
     private void HandleMovementCameraRelative()
@@ -140,12 +173,21 @@ public class ThirdPersonController : MonoBehaviour
     {
         if (animator == null) return;
 
-        float normalizedSpeed = (runSpeed > 0f) ? Mathf.Clamp01(currentSpeed / runSpeed) : 0f;
+        float normalizedMoveSpeed = (runSpeed > 0f) ? Mathf.Clamp01(currentSpeed / runSpeed) : 0f;
+
+        // Turning in place -> "fake" a little speed so walk anim plays while rotating
+        float turn01 = Mathf.InverseLerp(turnStartDegPerSec, turnFullDegPerSec, _turnDegPerSec);
+        float turningAnimSpeed = turn01 * turnAnimSpeed;
+
+        // Only apply turning animation assist when basically idle
+        float finalNormalizedSpeed = normalizedMoveSpeed;
+        if (normalizedMoveSpeed < idleSpeedThreshold01)
+            finalNormalizedSpeed = Mathf.Max(normalizedMoveSpeed, turningAnimSpeed);
 
         if (!string.IsNullOrEmpty(speedParam))
-            animator.SetFloat(speedParam, normalizedSpeed);
+            animator.SetFloat(speedParam, finalNormalizedSpeed, speedDampTime, Time.deltaTime);
 
         if (setMovingBool && !string.IsNullOrEmpty(movingParam))
-            animator.SetBool(movingParam, currentSpeed > 0.05f);
+            animator.SetBool(movingParam, finalNormalizedSpeed > idleSpeedThreshold01);
     }
 }

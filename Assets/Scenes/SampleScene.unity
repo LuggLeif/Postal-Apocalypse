@@ -2079,6 +2079,11 @@ MonoBehaviour:
   speedParam: Speed
   movingParam: IsMoving
   setMovingBool: 1
+  turnStartDegPerSec: 60
+  turnFullDegPerSec: 180
+  turnAnimSpeed: 0.5
+  idleSpeedThreshold01: 0.5
+  speedDampTime: 0.1
 --- !u!143 &931335285
 CharacterController:
   m_ObjectHideFlags: 0
