@@ -24,7 +24,6 @@ public class PackagePickup : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
-        // Any collision (typically ground) enables pickup.
         _canPickup = true;
     }
 
@@ -36,8 +35,12 @@ public class PackagePickup : MonoBehaviour
         {
             if (_pkg.Destination != null)
             {
-                inv.AddPackage(_pkg.Destination);
-                Destroy(gameObject);
+                bool added = inv.TryAddPackage(_pkg.Destination);
+                if (added)
+                {
+                    Destroy(gameObject);
+                }
+                // If not added: inventory fires OnPickupFailedFull and package stays.
             }
         }
     }

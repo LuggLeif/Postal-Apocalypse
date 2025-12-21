@@ -7,12 +7,13 @@ public class ThirdPersonController : MonoBehaviour
     [Header("References")]
     [SerializeField] private Transform cameraTransform;
     [SerializeField] private Animator animator;
+    [SerializeField] private PlayerSkills skills;
 
     [Header("Input (Input System)")]
     [SerializeField] private InputActionReference moveAction;   // Vector2
     [SerializeField] private InputActionReference runAction;    // Button (optional)
 
-    [Header("Movement")]
+    [Header("Movement (Base)")]
     [SerializeField] private float walkSpeed = 2.5f;
     [SerializeField] private float runSpeed = 5.5f;
     [SerializeField] private float acceleration = 12f;
@@ -29,19 +30,10 @@ public class ThirdPersonController : MonoBehaviour
     [SerializeField] private bool setMovingBool = true;
 
     [Header("Turn-in-place Animation")]
-    [Tooltip("Degrees/second where we START blending from idle -> walk while turning in place.")]
     [SerializeField] private float turnStartDegPerSec = 60f;
-
-    [Tooltip("Degrees/second where we are FULLY at turnAnimSpeed.")]
     [SerializeField] private float turnFullDegPerSec = 180f;
-
-    [Tooltip("Extra normalized speed to feed animator while turning in place (should land in your walk range).")]
     [SerializeField, Range(0f, 1f)] private float turnAnimSpeed = 0.35f;
-
-    [Tooltip("Only apply turn-walk if current movement speed is below this.")]
     [SerializeField, Range(0f, 1f)] private float idleSpeedThreshold01 = 0.05f;
-
-    [Tooltip("Smoothing time (seconds) for animator Speed parameter.")]
     [SerializeField] private float speedDampTime = 0.1f;
 
     private CharacterController controller;
@@ -49,7 +41,6 @@ public class ThirdPersonController : MonoBehaviour
     private float verticalVelocity;
     private float currentSpeed;
 
-    // Turning detection
     private float _lastYaw;
     private float _turnDegPerSec;
 
@@ -62,6 +53,9 @@ public class ThirdPersonController : MonoBehaviour
 
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
+
+        if (skills == null)
+            skills = GetComponent<PlayerSkills>();
 
         _lastYaw = transform.eulerAngles.y;
     }
@@ -80,19 +74,25 @@ public class ThirdPersonController : MonoBehaviour
 
     private void Update()
     {
-        UpdateTurnRate(); // <- computes _turnDegPerSec each frame
+        UpdateTurnRate();
 
         if (cameraTransform == null)
         {
             ApplyGravity();
-            UpdateAnimator();
+            UpdateAnimator(EffectiveRunSpeed());
             return;
         }
 
         HandleMovementCameraRelative();
         ApplyGravity();
-        UpdateAnimator();
+        UpdateAnimator(EffectiveRunSpeed());
     }
+
+    private float MovementMultiplier() => (skills != null) ? skills.MoveSpeedMultiplier : 1f;
+
+    private float EffectiveWalkSpeed() => walkSpeed * MovementMultiplier();
+
+    private float EffectiveRunSpeed() => runSpeed * MovementMultiplier();
 
     private void UpdateTurnRate()
     {
@@ -111,10 +111,12 @@ public class ThirdPersonController : MonoBehaviour
         bool isMoving = input.sqrMagnitude > 0.0001f;
         bool isRunning = runAction != null && runAction.action.IsPressed();
 
-        float targetSpeed = (isRunning ? runSpeed : walkSpeed) * input.magnitude;
+        float w = EffectiveWalkSpeed();
+        float r = EffectiveRunSpeed();
+
+        float targetSpeed = (isRunning ? r : w) * input.magnitude;
         currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, acceleration * Time.deltaTime);
 
-        // Camera-relative direction on XZ
         Vector3 camForward = cameraTransform.forward;
         Vector3 camRight = cameraTransform.right;
         camForward.y = 0f;
@@ -169,17 +171,16 @@ public class ThirdPersonController : MonoBehaviour
         verticalVelocity += gravity * Time.deltaTime;
     }
 
-    private void UpdateAnimator()
+    private void UpdateAnimator(float effectiveRunSpeed)
     {
         if (animator == null) return;
 
-        float normalizedMoveSpeed = (runSpeed > 0f) ? Mathf.Clamp01(currentSpeed / runSpeed) : 0f;
+        float normalizedMoveSpeed = (effectiveRunSpeed > 0f) ? Mathf.Clamp01(currentSpeed / effectiveRunSpeed) : 0f;
 
-        // Turning in place -> "fake" a little speed so walk anim plays while rotating
+        // turn-in-place anim assist
         float turn01 = Mathf.InverseLerp(turnStartDegPerSec, turnFullDegPerSec, _turnDegPerSec);
         float turningAnimSpeed = turn01 * turnAnimSpeed;
 
-        // Only apply turning animation assist when basically idle
         float finalNormalizedSpeed = normalizedMoveSpeed;
         if (normalizedMoveSpeed < idleSpeedThreshold01)
             finalNormalizedSpeed = Mathf.Max(normalizedMoveSpeed, turningAnimSpeed);

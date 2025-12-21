@@ -5,10 +5,11 @@ public class PlayerExperience : MonoBehaviour
 {
     public event Action OnChanged;
 
-    /// <summary>
-    /// Fired whenever XP is added (amount added).
-    /// </summary>
+    /// <summary> Fired whenever XP is added (amount added). </summary>
     public event Action<int> OnXpGained;
+
+    /// <summary> Fired once per level gained (passes the NEW level). </summary>
+    public event Action<int> OnLevelUp;
 
     [SerializeField] private int level = 1;
     [SerializeField] private int currentXp = 0;
@@ -31,6 +32,8 @@ public class PlayerExperience : MonoBehaviour
             currentXp -= xpToNext;
             level++;
             xpToNext = ComputeXpToNext(level);
+
+            OnLevelUp?.Invoke(level);
         }
 
         OnChanged?.Invoke();
@@ -40,7 +43,6 @@ public class PlayerExperience : MonoBehaviour
 
     private int ComputeXpToNext(int lvl)
     {
-        // Simple curve; tweak as desired.
         return 100 + (lvl - 1) * 25;
     }
 }
